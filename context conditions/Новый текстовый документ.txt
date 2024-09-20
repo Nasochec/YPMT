@@ -1,0 +1,50 @@
+
+	\begin{frame}[fragile]{Проверка контекстных условий выражений}
+		Если встречается операнд-переменная, то необходимо проверить описана ли она; если описана, то занести тип в стек.
+		
+%\begin{Verbatim}[tabsize=2]
+%void check_id() {
+%	int i;
+%	i = curr_lex.Value;
+%	if (TID[i].is_declared)
+%		spush (TID[i].type); // тип - в стек 
+%	else
+%		ERROR();// не описан
+%}
+%\end{Verbatim}	
+		
+		Встречая лексему, представляющую собой числовую или логическую константу, добавляем её в стек с помощью \texttt{spush("int")} или \texttt{spush("bool")}.
+	\end{frame}
+	
+	\begin{frame}[fragile]{Проверка контекстных условий выражений}
+	Для контроля корректности тройки операнд-операция-операнд используем функцию:
+		
+%\begin{Verbatim}[tabsize=2]
+%void check_op(){
+%	string op, t1, t2, res;
+%	t2 = spop(); // тип второго операнда 
+%	op = spop(); // обозначение операции
+%	t1 = spop(); // тип первого операнда
+%	res = gettype (op, t1, t2); 
+%	if (res != "no") 
+%		spush (res);
+%	else
+%		ERROR(); 
+%}
+%\end{Verbatim}	
+		
+	\end{frame}
+	
+	\begin{frame}[fragile]{Проверка контекстных условий выражений}
+		Для контроля типа операции not используем функцию:
+		
+%\begin{Verbatim}[tabsize=2]
+%void check_not (void){
+%	if (spop()!= "bool")
+%		ERROR();
+%	else
+%		spush("bool");
+%}
+%\end{Verbatim}	
+	
+	\end{frame}

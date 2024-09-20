@@ -1,0 +1,497 @@
+% !TeX encoding = windows-1251
+\documentclass[fullscreen=true,russian,compress,%
+hyperref={unicode,bookmarks=false}]{presentation}
+\inputencoding{cp1251} % Кодировка вашего файла 
+% Внимание! Опция russian не совместима с \tableofcontents
+\usepackage[russian]{babel} % Эту строку можно удалить
+\usepackage{paratype} % Выбираем шрифт
+\usepackage{appendixnumberbeamer} 
+
+
+\usepackage{fancyvrb}%для Verbatim
+% Определяем длины частей нижнего колонтитула: автор, название, число слайдов
+\makefootline{.35}{.55}{.1} % Сумма длин = 1
+
+\usepackage{tikz} % Для создания рисунков с помощью tikz
+\usepackage{listings} % Для листингов программ
+\setbeamerfont{footline}{size=\fontsize{7}{7}\selectfont}
+
+\graphicspath{ {./pictures/} }
+
+\begin{document}
+	
+	\newtheorem{Metric}{Метрика}
+	\newtheorem{weight}{Распределение весов}
+	% Если потребуется, переводим названия блоков с английского:
+	\deftranslation[to=Russian]{Theorem}{Теорема}
+	\deftranslation[to=Russian]{Example}{Пример}
+	%\deftranslation[to=Russian]{Metric}{Метрика}
+	
+	% Данные титульного слайда
+	\title[Лексический анализ]{Лексический анализ}
+	\author{Гладков Артемий Николаевич}
+%	\institute{Научный руководитель: к. ф.-м. н., доцент, А.\,В.~Смирнов}
+	\date{25.09.2024}
+	
+	% Создаем титульный слайд
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	% \tableofcontents не работает при включенной опции russian пакета babel
+	%\begin{frame}{Содержание}\tableofcontents\end{frame}
+
+	
+	\begin{frame}{Этапы построения транслятора}
+
+		Классическая схема компиляции программы:
+		{
+			\centering
+			\includegraphics[height=0.8\textheight]{pic1.png}
+			
+		}
+		
+	\end{frame}
+	
+	\begin{frame}{Что будет пройдено в рамках курса}
+		
+		
+		\begin{itemize}
+			\item Лексический анализ (Лаб. работа №1)
+			\item Синтаксический анализ (Лаб. работа №2)
+			\item Семантический анализ (Лаб. работа №3)
+			
+%			$\uparrow$ Допуск к экзамену или 3 автоматом.
+			\item Генерация внутренних представлений (дополнительное задание в Лаб. работе №3)
+			
+%			$\uparrow$ На 4 автоматом.
+			\item Исполнение (дополнительное задание в Лаб. работе №3)
+			
+%			$\uparrow$ На 5 автоматом.
+		\end{itemize}
+		
+	\end{frame}
+	
+	\begin{frame}{Что читать?}
+		
+		
+	В. А. Соколов Введение в теорию формальных языков, Ярославль, ЯрГУ, - 2014г.
+	
+	\end{frame}
+	
+	\begin{frame}{М-язык}
+		\begin{columns}
+			\begin{column}{0.6\paperwidth}
+				\\
+			$P \rightarrow \textbf{program}\: D_1\: B \bot$ \\
+			$D_1 \rightarrow \textbf{var}\: D \: \{;D\} $\\
+			$D \rightarrow I \{;I\}: [\textbf{int}|\textbf{bool}] $\\
+			$B \rightarrow \textbf{begin}\: S \{;S\}\: \textbf{end} $\\
+			\mbox{$ S \rightarrow I := E \mid \textbf{if}\: E \: \textbf{then}\: S \: \textbf{else} \: S \mid \textbf{while}\: E \: \textbf{do}\: S \mid B\mid  \textbf{read}(I)\mid \textbf{write}(E) $}\\
+			
+			$E \rightarrow E_1 \mid E_1 [=|<|>|!=] E_1$\\
+			$E_1 \rightarrow T \{[+|-|\textbf{or}] T\}$\\
+			$T \rightarrow F \{[*|/|\textbf{and}]F\}$\\
+			$F \rightarrow I \mid N \mid L \mid \textbf{not} \: F \mid (E) $\\
+			$L \rightarrow \textbf{true}\:\mid\:\textbf{false} $\\
+			$I \rightarrow C\:\mid IC\mid IR $\\
+			$N \rightarrow R\mid NR$\\
+			\mbox{$C \rightarrow a\mid b\mid \hdots \mid z\mid A \mid B \mid \hdots \mid Z$ 
+				\visible<4->{$\leftarrow$ Просто заглавные буквы.}}
+			$R \rightarrow 0\mid 1\mid \hdots \mid 9$
+				
+			\end{column}
+			\begin{column}{0.35\paperwidth}
+				\vspace{2cm}\\
+				
+				\visible<2->{Полужирным выделены \textbf{ключевые слова}.}\\
+				\visible<2->{$\bot$ --- символ конца программы.}\\
+				\visible<3->{$\{\alpha\} = \alpha^* = \alpha^n, n\geq 0$ }				
+			\end{column}
+		\end{columns}
+		
+	\end{frame}
+	
+	\begin{frame}{Задача лексического анализа}
+		
+		Лексический анализ (ЛА) – первый этап процесса компиляции.
+		Символы, составляющие исходную программу, группируются в отдельные лексические элементы, называемые \textbf{лексемами}. 
+		Лексический анализ важен для процесса компиляции по нескольким причинам:
+		\begin{itemize} 
+		\item замена в программе идентификаторов, констант, ограничителей и служебных слов лексемами для более удобной обработки; 
+		\item лексический анализ уменьшает длину программы, устраняя из неё несущественные пробелы и комментарии;
+		\item если будет изменена кодировка программы, то это отразится только на лексическом анализаторе.
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Принадлежность строки языку}
+		Для лексического анализа применяют регулярные грамматики (мы будем рассматривать леволинейные).
+		
+		\visible<2->{ Задача: проверить принадлежность строки $a_1\hdots a_n \bot$ левосторонней грамматике $G$.}
+		
+		\visible<3->{ \textbf{Алгоритм} проверки принадлежности строки языку:
+		
+			\begin{itemize}
+				\item первый символ строки $a_1 a_2 \hdots a_n \bot$ заменяем нетерминалом $A$, для которого в грамматике есть правило вывода $A \rightarrow a_1$; 
+				\item затем, пока не считаем символ $\bot$, выполняем следующие шаги: полученный на предыдущем шаге нетерминал $A$ и расположенный непосредственно справа терминал $a_i$ заменяем нетерминалом $B$, для которого в грамматике есть правило вывода $B \rightarrow Aa_i$.
+			\end{itemize}	
+		}
+	\end{frame}
+	
+	\begin{frame}{Принадлежность строки языку}
+		
+		
+		Возможные варианты по ходу алгоритма:
+			
+		\begin{itemize}
+			\item прочитана вся строка; на последнем шаге свертка произошла к символу $S$. Тогда $a_1 a_2 \hdots a_n\bot\in L(G) ;$
+			\item прочитана вся строка; на последнем шаге свертка произошла к символу, отличному от $S$. Тогда $a_1 a_2 \hdots a_n\bot\notin L(G);$
+			\item на некотором шаге не нашлось нужной <<свертки>>, то есть не нашлось подходящего правила вывода $B \rightarrow Aa_i$. Тогда $a_1 a_2 \hdots a_n\bot\notin L(G);$
+			\item на некотором шаге работы алгоритма оказалось, что есть более одной подходящей свертки, то есть в грамматике разные нетерминалы имеют правила вывода с одинаковыми правыми частями. Это говорит о недетерминированности разбора. 
+		\end{itemize}	
+		
+	\end{frame}
+	
+	\begin{frame}{Лексический анализатор}
+		
+		{\centering
+		Рассмотрим грамматику:
+		 $G = (\{S, A, B, C\}, \{a, b, \bot\}, S, P)$\\
+		}
+		\begin{columns}
+			\begin{column}{0.17\paperwidth}
+				P:\\
+				\begin{math}
+					\begin{array}{l}
+						S \rightarrow C \bot\\
+						C \rightarrow  Ab \mid Ba\\
+						A \rightarrow  \only<4->{H}a \mid Ca\\
+						B \rightarrow  \only<4->{H}b \mid Cb\\
+					\end{array}
+				\end{math}
+			\end{column}
+			\visible<3->{
+			\begin{column}{0.5\paperwidth}
+				Диаграмма состояний:\\
+				\begin{figure}
+					\includegraphics[width=1\textwidth]{pic2_1.png}
+				\end{figure}
+			\end{column}
+			}
+			\visible<2->{
+			\begin{column}{0.25\paperwidth}
+				Матрица переходов:\\
+				\begin{table}
+					\begin{tabular}{|c|c|c|c|}
+						\hline
+						& a & b & $\bot$ \\ \hline
+						C & A & B & S      \\ \hline
+						A & - & C & -      \\ \hline
+						B & C & - & -      \\ \hline
+						S & - & - & -      \\ \hline
+						\only<4->{H & A & B & - \\ \hline}
+					\end{tabular}
+				\end{table}
+			\end{column}
+			}
+			
+		\end{columns}
+		
+		
+		$$\only<4->{H}abaa\bot \Rightarrow Abaa\bot\Rightarrow Caa\bot \Rightarrow Aa\bot,$$
+		
+		\centering
+		Нет подходящей продукции $\Rightarrow abaa\notin L(G).$
+		$$\only<4->{H}abab\bot \Rightarrow Abab\bot\Rightarrow Cab\bot \Rightarrow Ab\bot \Rightarrow C\bot \Rightarrow S,$$
+		
+		\centering
+		Свернули строку к S $\Rightarrow abab\in L(G).$
+	\end{frame}
+%	 ТУТ СКАЗАТЬ ПРО ДКТКРМИНИЗАЦИЮ И НЕДЕТЕРМИНИРОВВАННЫЙ РАЗБОР
+
+	
+	\begin{frame}{О недетерминированном разборе}
+		\begin{itemize}
+			\item Как говорилось ранее, при проведении свёртки строки по грамматике, возможно возникновение неоднозначности.
+			
+			\pause
+			\item Но! Одним из важных результатов теории автоматов является эквивалентность класса \textbf{недетерминированных} и \textbf{детерминированных конечных автоматов}.
+			
+			\pause
+			\item Поэтому, при возникновении неоднозначности, диаграмму переходов необходимо детерминизировать.
+			\item Таким образом, проблема недетерминированного разбора в лексическом анализе является полностью решённой.
+		\end{itemize}
+	\end{frame}
+
+	\begin{frame}[fragile]{Реализация}
+		Строим программу по диаграмме состояний:\\
+		\begin{columns} 
+			\begin{column}{0.3\paperwidth}
+			{\tiny
+\begin{Verbatim}[tabsize=3]
+#include <iostream>
+using namespace std;
+
+// Символ конца строки
+#define EOF '&' 
+//Множество состояний
+enum class State { H, A, B,
+	 C, S, ER };
+// Текущий символ
+char curr='\0';
+// текущее состояние
+State state = State::H;
+
+void nextChar() {
+	cin >> curr;
+}
+void H() {
+	if (curr == 'a') {
+		nextChar();
+		state = State::A;
+	} else if (curr == 'b') {
+		nextChar();
+		state = State::B;
+	} else state = State::ER;
+}
+\end{Verbatim}
+			}
+			\end{column}
+			\begin{column}{0.3\paperwidth}
+				{\tiny
+\begin{Verbatim}[tabsize=3]
+void A() {
+	if (curr == 'b') {
+		nextChar();
+		state = State::C;
+	} else state = State::ER;
+}
+void B() {
+	if (curr == 'a') {
+		nextChar();
+		state = State::C;
+	} else state = State::ER;
+}
+void C() {
+	if (curr == 'a') {
+		nextChar();
+		state = State::A;
+	}
+	else if (curr == 'b') {
+		nextChar();
+		state = State::B;
+	}
+	else if (curr == EOF)
+		state = State::S;
+	else
+		state = State::ER;
+}
+\end{Verbatim}
+			}
+			\end{column}
+			\begin{column}{0.35\paperwidth}
+				{\tiny
+\begin{Verbatim}[tabsize=3]
+bool check() {
+	nextChar();
+	while (state!=State::ER && 
+			state!=State::S){
+		switch (state) {
+			case State::H: H(); break;
+			case State::A: A(); break;
+			case State::B: B(); break;
+			case State::C: C(); break;
+		}
+	}
+	if (state == State::ER)
+		return false;
+	if (state == State::S)
+		return true;
+}
+
+int main()
+{
+	cout << check();
+}
+\end{Verbatim}
+			}
+			\end{column}
+		\end{columns}
+		
+	\end{frame}
+	
+	\begin{frame}{Лексический анализатор для М-языка}
+		Вход: исходная программа.\\
+		Выход: список лексем.\\
+		Типы лексем:
+		\begin{itemize}
+		 	\item служебные слова -- 1,
+		 	\item ограничители -- 2,
+		 	\item константы -- 3,
+		 	\item идентификаторы -- 4.
+ 		\end{itemize}
+ 		Каждой лексеме сопоставляется пара:\\
+		(тип\_лексемы, указатель\_на\_информацию\_о\_ней). \\
+		Далее именно эту пару будем называть \textbf{лексемой}.\\
+		В списке выше после тире указан номер класса. Это значение будет занесено в поле тип\_лексемы для соответствующих лексем.
+	\end{frame}
+	
+	\begin{frame}{Лексический анализатор для М-языка}
+		Получим грамматику:\\
+		$R \rightarrow \textbf{begin}\mid\textbf{end}\mid\hdots\mid\textbf{not}$\\
+		$D \rightarrow ;\mid:\mid:=\mid\hdots\mid/\mid*$\\
+		$N \rightarrow 0\mid1\mid \hdots\mid9\mid N0\mid\hdots\mid N9$\\
+		$I \rightarrow a\mid b\mid\hdots\mid z\mid Ia\mid\hdots\mid Iz\mid I0\mid \hdots\mid I9$\\
+	\end{frame}	
+	
+	\begin{frame}{Лексический анализатор для М-языка}
+		Цель анализатора --- не просто выявить принадлежность строки языку, а выделить лексему и передать её для дальнейшей обработки.\\
+		То есть, появляются дополнительные действия для формирования лексем, которые надо выполнить, при разборе строки.\\
+		Для этого добавим в дуги метки действий $D_1,D_2\hdots,D_n$:
+		
+		\begin{figure}
+			\includegraphics[height=0.2\textheight]{pic3.png}
+		\end{figure}
+%		\only<2->{Выше $n \neq n$ (опечатка).\\ Количество действий не обязано быть равно количеству символов.}
+	\end{frame}
+	
+	\begin{frame}{Диаграмма состояний для М-языка}
+		
+		Введём обозначения:
+		\begin{itemize}
+		\item buf -- буфер для накопления символов лексемы;
+		\item c -- очередной входной символ;
+		\item d -- переменная для формирования числового значения константы;
+		\item TW -- таблица служебных слов М-языка;
+		\item TD -- таблица ограничителей М-языка;
+		\item TID -- таблица идентификаторов анализируемой программы;
+		\item TNUM -- таблица чисел-констант, используемых в программе.
+		\end{itemize}
+		
+		Таблицы TW и TD заполнены заранее. TID и TNUM формируются в процессе анализа.
+		
+		Пусть tabl -- имя типа таблиц, ptabl -- указатель на tabl.
+	\end{frame}
+	
+	\begin{frame}{Диаграмма состояний для М-языка}
+		
+		Определим функции:
+		\begin{itemize}
+			\item void clear(); -- очистка буфера buf;
+			\item void add(); -- добавление символа с в конец буфера buf;
+			\item int look(ptabl Т); -- поиск в таблице Т лексемы из буфера buf; 
+			результат: индекс лексемы в таблице либо 
+			-1, если такой лексемы в таблице Т нет;
+			\item int putl(ptabl Т); -- запись в таблицу Т лексемы из буфера buf, если ее там не было; результат: индекс добавленного элемента;
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Диаграмма состояний для М-языка}
+		
+		Определим функции:
+		\begin{itemize}
+			\item int putnum(); -- запись в TNUM константы из d, если ее там не было; результат: индекс добавленного элемента;
+			\item void makelex(int k, int i); -- формирование и вывод внутреннего представления лексемы; k -- номер класса, i -- номер в классе;
+			\item void gc(); -- функция, читающая из входного потока очередной символ исходной программы и заносящая его в переменную с;
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Диаграмма состояний для М-языка}
+		\begin{figure}
+			\includegraphics[height=0.80\paperheight]{pic4.png}	
+		\end{figure}
+%		\begin{columns}
+%			\begin{column}{0.5\paperwidth}
+%				\begin{figure}
+%					\includegraphics[width=1\textwidth]{pic5.png}	
+%				\end{figure}
+%			\end{column}
+%			\begin{column}{0.5\paperwidth}
+%				\begin{figure}
+%					\includegraphics[width=1\textwidth]{pic6.png}	
+%				\end{figure}
+%			\end{column}
+%		\end{columns}
+	\end{frame}
+	\begin{frame}{Диаграмма состояний для М-языка}
+		\begin{figure}
+			\includegraphics[width=0.6\textwidth]{pic5.png}	
+		\end{figure}
+	\end{frame}
+	\begin{frame}{Диаграмма состояний для М-языка}
+		\begin{figure}
+			\includegraphics[width=0.8\textwidth]{pic6.png}	
+		\end{figure}
+	\end{frame}
+	
+%	\begin{frame}[fragile]{Пример реализации}
+%		\begin{Verbatim}[tabsize=2]
+%vois ID(){
+%	if (isalpha(c) || isdigit(c)) {
+%		add(); c=fgetc(fp);
+%	}
+%	else {
+%		if (j = look(TW))
+%			makelex (1,j);
+%		else {
+%			j = putl(TID); makelex (4,j);
+%		}
+%		TC = H;
+%	};
+%}
+%		\end{Verbatim}
+%	\end{frame}
+	
+	\begin{frame}[fragile]{Результат работы лексического анализатора}
+		
+\begin{Verbatim}[tabsize=2]
+while a < b do begin
+	{if beleberda just commentary			
+	write(a);}
+	a := a + 1;
+	c := c * a
+end	&	
+\end{Verbatim}
+	
+		\pause\centering $\Downarrow$
+		
+		(0, 9) (3, 0) (1, 7) (3, 1) (0, 10) (0, 4) (3, 0) (1, 3) (3, 0) (1, 10) (2, 2) (1, 1)\\ (3, 2) (1, 3) (3, 2) (1, 12) (3, 0) (0, 5) (0, 18) 
+		
+		\pause Или для большей наглядности сопоставим id лексемы значение из таблицы лексем.
+		
+		\centering $\Downarrow$
+		
+		(0, while) (3, a) (1, <) (3, b) (0, do) (0, begin) (3, a) (1, :=) (3, a)\\ (1, +) (2, 1) (1, ;) (3, c) (1, :=) (3, c) (1, *) (3, a) (0, end) (0, \&) 
+		
+	\end{frame}
+	
+	\begin{frame}{Что дальше?}
+		\begin{itemize}
+			\item По диаграмме состояний реализовать программу. Опустим этот момент в презентации. Пример можно посмотреть в книжке.
+			\visible<2->{\item Посмотреть \href{ https://rutube.ru/video/private/05691dc16630b067b8ebeb0b445aa490/?p=qx5XKyhEa-S4cLlmm4TZLw}{\color{blue}видео} с моей реализацией лексического анализатора. }
+			\visible<3->{\item Сделать лабораторную работу №1 по лексическому анализу.}
+		\end{itemize}
+	\end{frame}
+	\begin{frame}{Лабораторная работа №1}
+		\begin{itemize}
+			\item Разбивка по вариантам и сами варианты будут выложены в курсе в moodle. И туда же нужно прикрепить решения.
+			\item Что требуется? --- Нарисовать диаграмму состояний. Написать программу по этой диаграмме состояний.
+			\item Дедлайн: 4 недели.
+			\item Когда сдавать? --- На следующих парах или online(назначим созвон на один из вечеров).
+		\end{itemize}
+	\end{frame}
+%	\begin{frame}{Будущие лекции}
+%		\begin{itemize}
+%			\item Занятия 2 и 3. Первая половина будет посвящена задаче синтаксического анализа, а вторая половина сдаче лабораторной работы.
+%			\item Занятия 4 и 5. Сначала семантический анализ, после генерация внутренних представлений и исполнение программы.
+%			\item Занятие 6. Приём Лабораторных. Или конец материала, если что-то не успеем.
+%		\end{itemize}
+%	\end{frame}
+%	\appendix
+%	
+%	\begin{frame}{Распределение вероятностей в смешанных стратегиях}
+%		
+%	\end{frame}
+	
+\end{document}
+

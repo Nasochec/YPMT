@@ -1,0 +1,287 @@
+% !TeX encoding = windows-1251
+\documentclass[fullscreen=true,russian,compress,%
+hyperref={unicode,bookmarks=false}]{presentation}
+\inputencoding{cp1251} % Кодировка вашего файла 
+% Внимание! Опция russian не совместима с \tableofcontents
+\usepackage[russian]{babel} % Эту строку можно удалить
+\usepackage{paratype} % Выбираем шрифт
+\usepackage{appendixnumberbeamer} 
+
+
+
+\usepackage{fancyvrb}%для Verbatim
+% Определяем длины частей нижнего колонтитула: автор, название, число слайдов
+\makefootline{.35}{.55}{.1} % Сумма длин = 1
+
+% для картинок
+\usepackage{tikz} % Для создания рисунков с помощью tikz
+\usetikzlibrary{shapes.multipart,calc}
+
+\usepackage{drawstack}
+
+\usepackage{listings} % Для листингов программ
+\setbeamerfont{footline}{size=\fontsize{7}{7}\selectfont}
+
+\graphicspath{ {./pictures/} }
+
+\begin{document}
+	
+	\newtheorem{Metric}{Метрика}
+	\newtheorem{weight}{Распределение весов}
+	% Если потребуется, переводим названия блоков с английского:
+	\deftranslation[to=Russian]{Theorem}{Теорема}
+	\deftranslation[to=Russian]{Example}{Пример}
+	%\deftranslation[to=Russian]{Metric}{Метрика}
+	
+	% Данные титульного слайда
+	\title[Проверка контекстных условий]{Проверка контекстных условий}
+	\author{Гладков Артемий Николаевич}
+%	\institute{Научный руководитель: к. ф.-м. н., доцент, А.\,В.~Смирнов}
+	\date{23.10.2024}
+	
+	% Создаем титульный слайд
+	\begin{frame}
+		\titlepage
+	\end{frame}
+	
+	% \tableofcontents не работает при включенной опции russian пакета babel
+	%\begin{frame}{Содержание}\tableofcontents\end{frame}
+	
+	\begin{frame}{Задача проверки контекстных условий}
+
+		В программе перед запуском исполнения требуется проверить разные контекстные условия.
+		
+		Примеры контекстных условий:
+		\begin{itemize}
+			\item Каждый используемый идентификатор (переменная, функция, класс, тип и т.д) должен быть определён и не более одного раза.
+			\item Число параметров, переданных в функцию, должно соответствовать количеству параметров в объявлении функции.
+			\item Ограничения на типы операндов. 
+		\end{itemize}
+		
+		Процесс проверки этих условий называют семантическим анализом.
+		
+	\end{frame}
+
+	\begin{frame}{Задача проверки контекстных условий}
+		
+		Проверку некоторых контекстных условия можно совместить с синтаксическим анализом. 
+		
+		\visible<2->{Как только синтаксический анализатор распознает конструкцию, на компоненты которой наложены некоторые ограничения, будем проверять их выполнение. }
+		
+		\visible<3->{Таким образом, необходимо встроить в процесс синтаксического анализа дополнительные <<синтаксические>> действия. Такие действия как раз удобно встраивать в метод рекурсивного спуска.}
+	\end{frame}
+
+	\begin{frame}[fragile]{Добавление семантических действий}
+		Расширим понятие КС-грамматики, добавив в ее правила вывода символы-действия.
+		Пусть в грамматике есть правило вывода:
+		$A\rightarrow a<D_1>B<D_1;D_2>\mid bC<D_3>$
+	
+		{\small
+\begin{Verbatim}[tabsize=2]
+void A() {
+	if (c=='a') {
+		c = fgetc(fp); 
+		D1(); 
+		B(); 
+		D1(); D2();
+	}
+	else if (c == 'b') {
+		c = fgetc(fp); 
+		C(); 
+		D3();
+	}
+	else
+		ERROR(); 
+}	
+\end{Verbatim}
+}
+
+	\end{frame}
+
+
+
+	\begin{frame}{Контекстные условия М-языка}	
+		Контекстные условия, выполнение которых нам надо контролировать в программах на М-языке, таковы.
+		\begin{itemize}
+			\item Любое имя, используемое в программе, должно быть описано и только один раз.
+			\item В операторе присваивания типы переменной и выражения должны совпадать.
+			\item В условном операторе и в операторе цикла в качестве условия возможно только логическое выражение.
+			\item Операнды операции отношения должны быть целочисленными.
+			\item Тип выражения и совместимость типов операндов в выражении определяются по обычным правилам (как в Паскале).
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}[fragile]{Обработка описаний}	
+		На этапе лексического анализатора уже будут известны все идентификаторы, внесём их в таблицу.
+		
+\begin{Verbatim}[tabsize=3]
+struct record {
+	string name; // идентификатор 
+	bool is_declared = false;// Объявлен ли?
+	string type; // тип переменной 
+};
+vector<record> TID;
+\end{Verbatim}
+		
+		Поле type заполним на этапе синтаксического анализа.\\
+		i-й элемент таблицы соответствует идентификатору под номером i.
+	
+	\end{frame}
+	
+	\begin{frame}[fragile]{Обработка описаний}	
+		void decid(int i, Type type) -- в i-той строке таблицы TID контролирует и заполняет поле declare и, если лексема (4,i) впервые встретилась в разделе описаний, заполняет поле type:
+\begin{Verbatim}[tabsize=3]
+void decid(int i, string type){
+	if (TID[i].is_declared) 
+		ERROR(); // повторное описание 
+	else {
+		TID[i].type = type;	
+		TID[i].is_declared = true;
+	}
+}
+\end{Verbatim}
+
+	\end{frame}
+	
+	\begin{frame}[fragile]{Обработка описаний}	
+		Раздел описаний имеет вид
+		$D \rightarrow I \{,I\}: [\textbf{int} \mid \textbf{bool}]$
+		Преобразованный будет иметь вид:
+		
+		\begin{multline*}
+			D \rightarrow  I <ipush(curr\_lex.Value)>\{,I <ipush(curr\_lex.Value)>\}:\\
+			[int <dec("int")> \mid bool <dec("bool")>]
+		\end{multline*} 
+		
+\begin{Verbatim}[tabsize=2]
+void ipush(int i); // целое в стек
+int ipop(); // целое из стека
+bool iempty();// пуст ли стек целых чисел
+void dec (string type)
+{
+	int i;
+	while (!iempty())
+		decid(ipop(), type);
+}
+\end{Verbatim}
+
+	\end{frame}
+	
+	\begin{frame}[fragile]{Проверка контекстных условий выражений}
+		Проверять корректность выражений удобно с помощью стека:
+		\begin{itemize}
+			\item Встречая числовую или логическую константу, или переменную заносим соответствующий тип в стек.
+			\item Встречая операцию, заносим её в стек.
+			\item 
+		\end{itemize}
+		
+		
+	\end{frame}
+	
+	\begin{frame}[fragile]{Проверка контекстных условий выражений}
+		\begin{columns}
+			\begin{column}{0.7\paperwidth}
+			
+				Пример: проверить корректность следующих выражений:
+		
+\begin{Verbatim}[tabsize=2]
+	int a,b;
+	bool c;
+	a := a / 2 + b * 54;
+	c := c and (a = b);
+\end{Verbatim}
+
+	
+				Для проверки применяем стек. Типы операндов и операции сохраняем в стек и, с соблюдением приоритета операций, вычисляем результирующий тип, пока не вычислим тип всего выражения.
+				
+				Рассмотрим выражение: \only<0-14>{$a:=a/2+b*54$}
+				\only<15->{$c:=c \: and \: (a = b)$}
+			\end{column}
+			\begin{column}{0.25\paperwidth}
+				\only<0-14>{}
+					\begin{tikzpicture}[stack/.style={rectangle split, rectangle split parts=#1,draw, anchor=center}]
+					\node[stack=7]  {
+						\nodepart{seven}\only<2-13> {(int, a)}\only<14-14> {}\only<15-23> {(bool, c)}\only<24-24> {}
+						\nodepart{six}\only<3-13> {:=}\only<16-23> {:=}
+						\nodepart{five}\only<4-6> {(int, a)}\only<7-12> {(int, a/2)}\only<13-13> {(int, a/2+b*54)}\only<17-22> {(bool, c)}\only<23-23> {(bool, c and a=b)}
+						\nodepart{four}\only<5-6> {/}\only<8-12> {+}\only<18-22> {and}
+						\nodepart{three}\only<6-6> {(int, 2)}\only<9-11> {(int, b)}\only<12-12> {(int, b*54)}\only<19-21> {(int, a)}\only<22-22> {(bool, a=b)}
+						\nodepart{two}\only<10-11> {*}\only<20-21> {=}
+						\nodepart{one}\only<11-11> {(int, 54)}\only<21-21> {(int, b)}
+					};
+					\end{tikzpicture}
+				
+%					\begin{tikzpicture}[stack/.style={rectangle split, rectangle split parts=#1,draw, anchor=center}]
+%					\node[stack=7]  {
+%						\nodepart{seven}
+%						\only<16-24> { bool }
+%						\only<25-0> {  }
+%						\nodepart{six}
+%						\only<17-24> { := }
+%						\nodepart{five}
+%						\only<18-23> { bool }
+%						\only<24-24> { bool }
+%						\nodepart{four}
+%						\only<19-23> { and }
+%						\nodepart{three}
+%						\only<20-22> { int }
+%						\only<23-23> { bool }
+%						\nodepart{two}
+%						\only<21-22> { = }
+%						\nodepart{one}
+%						\only<22-22> { int }
+%					};
+%					\end{tikzpicture}
+				
+			\end{column}
+		\end{columns}
+	\end{frame}
+	
+	
+	\begin{frame}{Проверка контекстных условий выражений}
+			Получаемая грамматика:
+			$E \rightarrow E_1 \mid E_1 [=|<|>|!=]<push(oper)> E_1 <check\_op()>$\\
+			$E_1 \rightarrow T \{[+|-|\textbf{or}]<push(oper)> T <check\_op()>\}$\\
+			$T \rightarrow F \{[*|/|\textbf{and}] <push(oper)> F <check\_op()>\}$\\
+			$F \rightarrow I<check\_declared();push(type)> \mid N<push(int)> \mid L<push(bool)> \mid \textbf{not} \: F <check\_not()> \mid (E) $\\
+
+			\texttt{push(oper)}
+			
+%			$E \rightarrow E_1 \mid E_1 [=|<|>|!=]<spush(TD[curr\_lex.value])> E_1 <check\_op()>$\\
+%			$E_1 \rightarrow T \{[+|-|\textbf{or}]<spush(TD[curr\_lex.value])> T <check\_op()>\}$\\
+%			$T \rightarrow F \{[*|/|\textbf{and}] <spush(TD[curr\_lex.value])> F <check\_op()>\}$\\
+%			$F \rightarrow I<ckeck\_id()> \mid N<spush("int")> \mid L<spush("bool")> \mid \textbf{not} \: F <check\_not()> \mid (E) $\\
+	\end{frame}
+
+
+	\begin{frame}{Что дальше?}
+		\begin{itemize}
+			\item Посмотреть видео с моей реализацией семантического анализатора: <ссылка>.
+			\visible<2->{\item Начать делать работу №3 по семантическому анализатору.}
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Лабораторная работа №3}
+		\begin{itemize}
+			\item Разбивка по вариантам и сами варианты будут выложены в курсе в moodle. И туда же нужно прикрепить решения.
+			\item Что требуется? --- Реализовать семантический анализатор.
+			\item Дедлайн: 6 недель.
+			\item Когда сдавать? --- На следующих парах или online(назначим созвон на один из вечеров).
+		\end{itemize}
+	\end{frame}
+	
+	\begin{frame}{Будущие лекции}
+		\begin{itemize}
+			\item Занятие 4: первая половина пары --- генерация внутренних представлений.
+			\item Занятие 5: первая половина пары --- исполнение кода.
+			\item Занятие 6 --- приём Лабораторных. Или конец материала, если что-то не успеем.
+		\end{itemize}
+	\end{frame}
+%	\appendix
+%	
+%	\begin{frame}{Распределение вероятностей в смешанных стратегиях}
+%		
+%	\end{frame}
+	
+\end{document}
+
